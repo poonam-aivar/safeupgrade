@@ -1,0 +1,8 @@
+repos:
+  # detect-secrets (Yelp) - baseline-based approach for secret scanning
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', 'security/.secrets.baseline']
+        stages: [pre-commit]

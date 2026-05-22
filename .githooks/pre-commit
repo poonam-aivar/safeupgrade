@@ -1,0 +1,21 @@
+#!/bin/sh
+# .githooks/pre-commit
+# Minimal shim: run pre-commit if installed, else show instructions.
+
+# Add Python user bin to PATH if it exists
+if [ -d "$HOME/Library/Python" ]; then
+  PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null || echo "3.13")
+  USER_BIN_PATH="$HOME/Library/Python/$PYTHON_VERSION/bin"
+  if [ -d "$USER_BIN_PATH" ]; then
+    export PATH="$USER_BIN_PATH:$PATH"
+  fi
+fi
+
+if command -v pre-commit >/dev/null 2>&1; then
+  # run only the pre-commit hooks for the staged files
+  pre-commit run --hook-stage pre-commit --files "$@"
+else
+  echo "pre-commit not installed. Run: ./setup.sh"
+  # Do not fail the commit here — let setup be the gate. If you prefer strict blocking,
+  # exit 1 to abort commits until pre-commit is installed.
+fi
