@@ -47,7 +47,7 @@ func fetchGitHubRelease(repo, version string) (*Changelog, error) {
 		resp, err := httpClient.Do(req)
 		if err != nil || resp.StatusCode != 200 {
 			if resp != nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 			continue
 		}
@@ -99,7 +99,7 @@ func fetchNpmChangelog(pkg, version string) (*Changelog, error) {
 			URL string `json:"url"`
 		} `json:"repository"`
 	}
-	json.Unmarshal(body, &meta)
+	_ = json.Unmarshal(body, &meta)
 
 	return &Changelog{
 		Package: pkg,
@@ -125,7 +125,7 @@ func guessGitHubRepo(pkg string) string {
 			URL string `json:"url"`
 		} `json:"repository"`
 	}
-	json.NewDecoder(resp.Body).Decode(&meta)
+	json.NewDecoder(resp.Body).Decode(&meta) //nolint:errcheck // best-effort metadata lookup
 
 	repoURL := meta.Repository.URL
 	// Parse "git+https://github.com/owner/repo.git" or "https://github.com/owner/repo"

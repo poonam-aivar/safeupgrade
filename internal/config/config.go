@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -165,7 +166,8 @@ func Load(path string) (*Config, error) {
 		return cfg, nil
 	}
 
-	data, err := os.ReadFile(path)
+	cleanPath := filepath.Clean(path)
+	data, err := os.ReadFile(cleanPath) // #nosec G304 -- path is user-provided CLI flag, not untrusted input
 	if err != nil {
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}

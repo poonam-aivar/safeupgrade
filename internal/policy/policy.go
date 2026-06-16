@@ -3,6 +3,7 @@ package policy
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/aivar-tech/safeupgrade-agent/internal/scanner"
@@ -50,7 +51,8 @@ type Violation struct {
 }
 
 func Load(path string) (*Policy, error) {
-	data, err := os.ReadFile(path)
+	cleanPath := filepath.Clean(path)
+	data, err := os.ReadFile(cleanPath) // #nosec G304 -- path is user-provided CLI flag
 	if err != nil {
 		return nil, fmt.Errorf("reading policy file: %w", err)
 	}
@@ -149,7 +151,7 @@ func getMajor(version string) int {
 		return 0
 	}
 	major := 0
-	fmt.Sscanf(parts[0], "%d", &major)
+	_, _ = fmt.Sscanf(parts[0], "%d", &major)
 	return major
 }
 
