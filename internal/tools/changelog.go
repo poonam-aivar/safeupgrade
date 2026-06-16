@@ -125,7 +125,7 @@ func guessGitHubRepo(pkg string) string {
 			URL string `json:"url"`
 		} `json:"repository"`
 	}
-	json.NewDecoder(resp.Body).Decode(&meta) //nolint:errcheck // best-effort metadata lookup
+	json.NewDecoder(resp.Body).Decode(&meta) // #nosec G104 -- best-effort metadata lookup
 
 	repoURL := meta.Repository.URL
 	// Parse "git+https://github.com/owner/repo.git" or "https://github.com/owner/repo"

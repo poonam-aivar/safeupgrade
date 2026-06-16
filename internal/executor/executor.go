@@ -73,11 +73,11 @@ func (e *Executor) upgradeDep(name, version string) error {
 	var cmd *exec.Cmd
 	switch e.lang {
 	case "npm":
-		cmd = exec.Command("npm", "install", fmt.Sprintf("%s@%s", name, version), "--save-exact")
+		cmd = exec.Command("npm", "install", fmt.Sprintf("%s@%s", name, version), "--save-exact") // #nosec G204 -- name/version from package manager output
 	case "pip":
-		cmd = exec.Command("pip", "install", fmt.Sprintf("%s==%s", name, version))
+		cmd = exec.Command("pip", "install", fmt.Sprintf("%s==%s", name, version)) // #nosec G204
 	case "go":
-		cmd = exec.Command("go", "get", fmt.Sprintf("%s@%s", name, version))
+		cmd = exec.Command("go", "get", fmt.Sprintf("%s@%s", name, version)) // #nosec G204
 	default:
 		return fmt.Errorf("unsupported ecosystem: %s", e.lang)
 	}
@@ -114,7 +114,7 @@ func (e *Executor) CreateBranch(branchName string) error {
 		{"git", "checkout", "-b", branchName},
 	}
 	for _, args := range cmds {
-		cmd := exec.Command(args[0], args[1:]...)
+		cmd := exec.Command(args[0], args[1:]...) // #nosec G204 -- args are hardcoded git commands
 		cmd.Dir = e.repo
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("%s: %s", err, string(out))
@@ -130,7 +130,7 @@ func (e *Executor) CommitAndPush(branchName, message string) error {
 		{"git", "push", "-u", "origin", branchName},
 	}
 	for _, args := range cmds {
-		cmd := exec.Command(args[0], args[1:]...)
+		cmd := exec.Command(args[0], args[1:]...) // #nosec G204 -- args are hardcoded git commands
 		cmd.Dir = e.repo
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("%s: %s", err, string(out))

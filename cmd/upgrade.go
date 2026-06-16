@@ -113,7 +113,7 @@ func executeUpgrade() error {
 	rep := reporter.Generate(report, analysis, result)
 
 	out, _ := json.MarshalIndent(rep, "", "  ")
-	if err := os.WriteFile("upgrade_report.json", out, 0644); err != nil {
+	if err := os.WriteFile("upgrade_report.json", out, 0600); err != nil {
 		return err
 	}
 

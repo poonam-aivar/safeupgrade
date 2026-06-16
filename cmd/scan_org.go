@@ -71,7 +71,7 @@ func executeScanOrg() error {
 		cloneURL := repo.GetCloneURL()
 		repoDir := filepath.Join(tmpDir, name)
 
-		cmd := exec.Command("git", "clone", "--depth=1", cloneURL, repoDir)
+		cmd := exec.Command("git", "clone", "--depth=1", cloneURL, repoDir) // #nosec G204 G702 -- cloneURL comes from GitHub API, not user input
 		cmd.Env = append(os.Environ(), fmt.Sprintf("GIT_ASKPASS=echo"), fmt.Sprintf("GIT_TERMINAL_PROMPT=0"))
 		if _, err := cmd.CombinedOutput(); err != nil {
 			continue

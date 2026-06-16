@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/aivar-tech/safeupgrade-agent/internal/policy"
 	"github.com/aivar-tech/safeupgrade-agent/internal/scanner"
@@ -40,7 +41,7 @@ func executeScan() error {
 	}
 
 	out, _ := json.MarshalIndent(report, "", "  ")
-	return os.WriteFile("scan_report.json", out, 0644)
+	return os.WriteFile("scan_report.json", out, 0600)
 }
 
 func executePolicyCheck() error {
@@ -85,16 +86,17 @@ func detectLanguage(repo, override string) string {
 	if override != "" {
 		return override
 	}
-	if _, err := os.Stat(repo + "/package.json"); err == nil {
+	cleanRepo := filepath.Clean(repo)
+	if _, err := os.Stat(filepath.Join(cleanRepo, "package.json")); err == nil {
 		return "npm"
 	}
-	if _, err := os.Stat(repo + "/requirements.txt"); err == nil {
+	if _, err := os.Stat(filepath.Join(cleanRepo, "requirements.txt")); err == nil {
 		return "pip"
 	}
-	if _, err := os.Stat(repo + "/Pipfile"); err == nil {
+	if _, err := os.Stat(filepath.Join(cleanRepo, "Pipfile")); err == nil {
 		return "pip"
 	}
-	if _, err := os.Stat(repo + "/go.mod"); err == nil {
+	if _, err := os.Stat(filepath.Join(cleanRepo, "go.mod")); err == nil {
 		return "go"
 	}
 	return ""
