@@ -1,0 +1,29 @@
+global:
+  block_canary: true
+  block_alpha: true
+  enforce_lockfile: true
+  max_major_jump: 0
+  provenance_required: true
+
+packages:
+  react:
+    pin_major: 18
+    reason: "React 19 migration planned for Q3"
+  axios:
+    block_versions: ["1.14.1", "0.30.4"]
+    reason: "Supply chain attack - March 2026"
+  next:
+    block_canary: true
+    allow_minor: true
+  "@tanstack/router":
+    block_versions: ["1.161.9", "1.161.12"]
+    reason: "Supply chain attack - May 2026"
+
+alerts:
+  compromised_package:
+    channel: "#security-alerts"
+    bypass_policy: true
+    action: "auto-pin-previous"
+  maintainer_change:
+    channel: "#security-alerts"
+    action: "block-until-reviewed"

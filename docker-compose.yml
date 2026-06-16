@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  # Public web UI service
+  safeupgrade-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NODE_ENV=production
+    depends_on:
+      - safeupgrade-api
+    restart: unless-stopped
+
+  # API server
+  safeupgrade-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["serve", "--port", "8080"]
+    ports:
+      - "8080:8080"
+    environment:
+      # AI Backend - Users bring their own API keys
+      - AI_PROVIDER=openai
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # Optional: Default to free Ollama for demo
+      # - AI_PROVIDER=ollama
+      # - AI_ENDPOINT=http://ollama:11434
+      
+      # Database
+      - DATABASE_URL=postgresql://safeupgrade:${DB_PASSWORD:-changeme}@postgres:5432/safeupgrade
+      
+      # Redis for queue
+      - REDIS_URL=redis://redis:6379
+      
+      # Rate limiting
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_PER_HOUR=10
+      
+      # Report storage
+      - S3_BUCKET=${S3_BUCKET:-safeupgrade-reports}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      
+      # Security
+      - ALLOWED_ORIGINS=http://localhost:3000,https://safeupgrade.io
+      
+    volumes:
+      - ./data:/data
+      - /var/run/docker.sock:/var/run/docker.sock  # For sandbox
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  # Worker for async processing
+  safeupgrade-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["worker"]
+    environment:
+      - DATABASE_URL=postgresql://safeupgrade:${DB_PASSWORD:-changeme}@postgres:5432/safeupgrade
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+
+  # Optional: Ollama for free local AI (no API key needed)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    # Uncomment to auto-pull model on startup
+    # command: ["serve", "--models", "llama3"]
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=safeupgrade
+      - POSTGRES_USER=safeupgrade
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  # Redis for queue and cache
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # Optional: Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - safeupgrade-web
+      - safeupgrade-api
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  ollama-data:
+
+networks:
+  default:
+    name: safeupgrade-network

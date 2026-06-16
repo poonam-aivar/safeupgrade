@@ -1,0 +1,7 @@
+safeupgrade
+scan_report.json
+upgrade_report.json
+*.exe
+.DS_Store
+testdata/sample-project/node_modules/
+testdata/sample-project/package-lock.json

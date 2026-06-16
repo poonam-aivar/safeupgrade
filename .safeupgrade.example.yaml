@@ -1,0 +1,122 @@
+# SafeUpgrade Configuration File
+# Copy this to .safeupgrade.yaml and customize for your needs
+
+# AI Backend Configuration
+ai_backend:
+  # Options: openai, anthropic, bedrock, azure, ollama, gateway
+  provider: "openai"
+  
+  # API credentials (use environment variables for security)
+  api_key: "${OPENAI_API_KEY}"
+  
+  # Model selection
+  model: "gpt-4o"
+  
+  # For custom endpoints (gateway, ollama, azure)
+  # endpoint: "https://your-gateway.com/v1"
+  
+  # AWS Bedrock specific
+  # aws_region: "us-east-1"
+  # aws_profile: "default"
+
+# GitHub Configuration
+github:
+  # Personal access token or use GITHUB_TOKEN environment variable
+  token: "${GITHUB_TOKEN}"
+  
+  # For GitHub Enterprise
+  # enterprise_url: "https://github.company.com"
+  # api_url: "https://github.company.com/api/v3"
+  
+  # Auto-create PRs after successful upgrade
+  auto_pr: true
+  
+  # PR settings
+  pr_title: "chore(deps): SafeUpgrade automated dependency update"
+  pr_base_branch: "main"
+  pr_labels: ["dependencies", "safeupgrade"]
+  
+  # Request reviews from
+  pr_reviewers: []
+  pr_team_reviewers: []
+
+# Policy Configuration
+policy:
+  # Path to policy file (relative to repo root)
+  file: "configs/policy.yaml"
+  
+  # Fail on policy violations
+  strict: true
+
+# Scan Configuration
+scan:
+  # Auto-detect or specify: npm, pip, go
+  ecosystem: "auto"
+  
+  # Include dev dependencies
+  include_dev: false
+  
+  # Parallel processing
+  concurrent_checks: 5
+
+# Upgrade Behavior
+upgrade:
+  # Upgrade strategy: all, safe, manual
+  strategy: "safe"
+  
+  # Run tests after upgrade
+  run_tests: true
+  
+  # Test command (auto-detected if not specified)
+  # test_command: "npm test"
+  
+  # Rollback on test failure
+  rollback_on_failure: true
+  
+  # Create separate PR per package
+  separate_prs: false
+
+# Security Checks
+security:
+  # Check CVEs via OSV.dev
+  check_cves: true
+  
+  # Verify npm package provenance
+  check_provenance: true
+  
+  # Detect supply chain anomalies
+  detect_anomalies: true
+  
+  # Block upgrades with known vulnerabilities
+  block_vulnerable: true
+
+# Reporting
+reporting:
+  # Output formats: json, markdown, sarif, html
+  formats: ["json", "markdown"]
+  
+  # Output directory
+  output_dir: ".safeupgrade"
+  
+  # Slack webhook for notifications
+  # slack_webhook: "${SLACK_WEBHOOK_URL}"
+  
+  # Microsoft Teams webhook
+  # teams_webhook: "${TEAMS_WEBHOOK_URL}"
+
+# Rate Limiting (for public web UI)
+rate_limit:
+  enabled: false
+  max_requests_per_hour: 10
+
+# Cache Configuration
+cache:
+  enabled: true
+  ttl_hours: 24
+  directory: ".safeupgrade/cache"
+
+# Logging
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "text"  # text, json
+  file: ""  # empty = stdout only
