@@ -1,348 +1,183 @@
-# SafeUpgrade Agent 🚀🔒
+# SafeUpgrade
 
-AI-powered dependency upgrade agent with supply chain security built-in.
+AI-powered dependency upgrade agent with supply chain security.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://golang.org)
-[![Docker Pulls](https://img.shields.io/docker/pulls/aivar/safeupgrade)](https://hub.docker.com/r/aivar/safeupgrade)
+SafeUpgrade scans your project's dependencies, checks for vulnerabilities and supply chain risks, uses AI to analyze changelogs for breaking changes, and only upgrades what's genuinely safe — then creates a PR with a full risk report.
 
-## 🎯 What is SafeUpgrade?
+## Quick Start
 
-SafeUpgrade analyzes dependency upgrades using AI and real security data to automatically upgrade your dependencies safely. Unlike traditional tools that just check for updates, SafeUpgrade:
+```bash
+docker run --rm -v $(pwd):/workspace \
+  pawarpoonam/safeupgrade:latest scan --repo /workspace --lang pip
+```
 
-- 🤖 **AI-Powered Analysis** - Uses Claude/GPT to read changelogs and detect breaking changes
-- 🔒 **Supply Chain Security** - Checks CVEs, package provenance, and detects malicious patterns
-- 📋 **Policy Enforcement** - Organization-wide upgrade policies with exceptions
-- 🔄 **Automated PRs** - Creates pull requests with detailed upgrade reports
-- 🎯 **Multi-Ecosystem** - Supports npm, pip, and Go (more coming)
+## Usage
 
-## 🚀 Quick Start
+### Scan (detect outdated dependencies)
 
-### Option 1: Try Online (No Installation)
+```bash
+# Python project
+docker run --rm -v $(pwd):/workspace \
+  pawarpoonam/safeupgrade:latest scan --repo /workspace --lang pip
 
-Visit [safeupgrade.io](https://safeupgrade.io) and paste your GitHub repo URL to get a free security analysis.
+# Node.js project
+docker run --rm -v $(pwd):/workspace \
+  pawarpoonam/safeupgrade:latest scan --repo /workspace --lang npm
 
-### Option 2: Use in CI/CD (Like Snyk/Trivy)
+# Go project
+docker run --rm -v $(pwd):/workspace \
+  pawarpoonam/safeupgrade:latest scan --repo /workspace --lang go
+```
+
+### Full Upgrade (AI analysis + file changes)
+
+```bash
+docker run --rm --user root -v $(pwd):/workspace \
+  -e AI_GATEWAY_KEY=your-key \
+  pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
+```
+
+### Policy Check (validate against org rules)
+
+```bash
+docker run --rm -v $(pwd):/workspace \
+  pawarpoonam/safeupgrade:latest policy-check --repo /workspace --lang npm --policy /etc/safeupgrade/policy.yaml
+```
+
+## GitHub Actions
+
+Add this to any repo's workflow:
 
 ```yaml
-# .github/workflows/safeupgrade.yml
 name: SafeUpgrade
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # Weekly on Monday
+    - cron: '0 6 * * 1'  # Every Monday 6 AM UTC
   workflow_dispatch:
 
 jobs:
-  upgrade:
+  safeupgrade:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Run SafeUpgrade
-        uses: docker://aivar/safeupgrade:latest
-        with:
-          args: upgrade --auto-pr
+
+      - name: SafeUpgrade Full Analysis
+        run: |
+          docker run --rm --user root -v $(pwd):/workspace \
+            -e AI_GATEWAY_KEY=${{ secrets.AI_GATEWAY_KEY }} \
+            pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
+
+      - name: Create PR if upgrades were made
+        run: |
+          if [ -n "$(git diff --name-only)" ]; then
+            BRANCH="safeupgrade/$(date +%Y%m%d)"
+            git config user.name "SafeUpgrade Bot"
+            git config user.email "safeupgrade@users.noreply.github.com"
+            git checkout -b "$BRANCH"
+            git add .
+            git commit -m "chore(deps): safe dependency upgrades by SafeUpgrade Agent"
+            git push -u origin "$BRANCH"
+            PR_BODY=$(python3 -c "import sys,json; print(json.load(sys.stdin)['pr_body'])" < upgrade_report.json)
+            gh pr create \
+              --title "chore(deps): SafeUpgrade automated dependency update" \
+              --body "$PR_BODY" \
+              --base main
+          else
+            echo "No upgrades applied — all deps either up-to-date or blocked by policy/AI"
+          fi
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Option 3: Install CLI
+**Required secret:** `AI_GATEWAY_KEY` — your AI gateway API key for Claude analysis.
 
-```bash
-# macOS/Linux
-brew install aivar/tap/safeupgrade
+Change `--lang pip` to `npm` or `go` depending on your project.
 
-# Or download binary
-curl -sSL https://get.safeupgrade.io | sh
+## What It Does
 
-# Or use Go
-go install github.com/aivar-tech/safeupgrade-agent@latest
+```
+[1/5] Scan         → Finds outdated deps (parses package.json / pyproject.toml / requirements.txt directly — no install needed)
+[2/5] Policy       → Blocks known-compromised versions + major jumps
+      Live CVE     → Queries OSV.dev for each target version
+[3/5] AI Analysis  → Claude reads changelogs, checks provenance, scores risk → SAFE / RISKY / BLOCK
+[4/5] Execute      → Updates version pins in source files (only SAFE packages)
+[5/5] Report       → Generates upgrade_report.json with PR-ready markdown
 ```
 
-### Option 4: Docker
+## Example Output
 
-```bash
-docker run -v $(pwd):/repo \
-  -e OPENAI_API_KEY=$OPENAI_API_KEY \
-  aivar/safeupgrade:latest \
-  upgrade --repo /repo
+```
+🚀 Running SafeUpgrade agent...
+  [1/5] Scanning dependencies...
+        Found 35 outdated out of 35 total
+  [2/5] Evaluating policies...
+        27 candidates after policy filter
+        27 candidates after live CVE check
+  [3/5] AI analyzing changelogs and risk...
+        Fetching changelogs...
+        Checking CVEs...
+        Verifying provenance...
+        26 upgrades deemed safe
+        ✅ axios: SAFE (confidence: 95%) — Minor version with security hardening, verified provenance, no CVEs
+        ✅ react-dom: SAFE (confidence: 95%) — Patch fix, verified provenance, React core team
+        ⚠️  react-hook-form: RISKY (confidence: 60%) — Published <24 hours ago without provenance attestation
+  [4/5] Executing upgrades...
+  [5/5] Generating report...
+
+✅ Upgrade complete: 26 upgraded, 1 skipped
 ```
 
-## 📖 Usage
+## How It's Different from Dependabot
 
-### Scan for Outdated Dependencies
+| | Dependabot | SafeUpgrade |
+|---|---|---|
+| Detection | ✅ | ✅ |
+| AI changelog analysis | ❌ | ✅ Claude reads release notes |
+| Supply chain detection | ❌ | ✅ Provenance, install scripts, publish anomalies |
+| Risk scoring | ❌ | ✅ Confidence-based decisions |
+| Org-wide policy | ❌ | ✅ Central YAML (block versions, pin majors) |
+| Batched PRs | ❌ (1 per dep) | ✅ One PR with all safe upgrades |
+| Live CVE blocking | ❌ | ✅ OSV.dev query before upgrade |
+| No install needed | ✅ | ✅ Parses manifest files directly |
 
-```bash
-safeupgrade scan
-```
+## Supported Ecosystems
 
-Output:
-```
-🔍 Scanning dependencies...
-  Ecosystem: npm
-  Repo: /Users/you/myproject
+| Ecosystem | Manifest Files | Registry |
+|-----------|---------------|----------|
+| Python | `pyproject.toml`, `requirements.txt` | PyPI |
+| Node.js | `package.json` | npm |
+| Go | `go.mod` | Go modules |
 
-📦 Found 45 dependencies, 8 outdated
+Monorepos are supported — the scanner recursively finds all dependency files.
 
-  ⚠️  OUTDATED react: 18.2.0 → 19.0.0
-  ⚠️  OUTDATED axios: 1.6.0 → 1.6.5
-  🚨 VULNERABLE express: 4.18.0 → 4.18.2 (CVE-2024-12345)
-```
+## Policy File
 
-### Upgrade with AI Analysis
-
-```bash
-safeupgrade upgrade --policy configs/policy.yaml
-```
-
-The agent will:
-1. ✅ Scan for outdated dependencies
-2. 🔍 Check against your policy rules
-3. 🔒 Verify CVEs and provenance
-4. 🤖 AI analyzes changelogs for breaking changes
-5. ⬆️ Upgrades safe dependencies
-6. ✅ Runs your test suite
-7. 📝 Creates a PR with detailed report
-
-### Configure Your AI Backend
-
-SafeUpgrade supports multiple AI providers:
-
-```bash
-# OpenAI (recommended for public use)
-export OPENAI_API_KEY=sk-...
-safeupgrade upgrade
-
-# Anthropic
-export ANTHROPIC_API_KEY=sk-ant-...
-safeupgrade upgrade --ai-provider anthropic
-
-# AWS Bedrock (for enterprise)
-safeupgrade upgrade --ai-provider bedrock --aws-region us-east-1
-
-# Ollama (free, local)
-safeupgrade upgrade --ai-provider ollama --ai-endpoint http://localhost:11434
-
-# Custom Gateway (for your company)
-safeupgrade upgrade \
-  --gateway-url https://ai-gateway.yourcompany.com \
-  --gateway-key your-key
-```
-
-## 🎨 Configuration
-
-Create `.safeupgrade.yaml` in your repo:
+Create a `policy.yaml` to enforce org-wide rules:
 
 ```yaml
-ai_backend:
-  provider: "openai"
-  api_key: "${OPENAI_API_KEY}"
-  model: "gpt-4o"
-
-github:
-  token: "${GITHUB_TOKEN}"
-  auto_pr: true
-
-policy:
-  file: "configs/policy.yaml"
-
-upgrade:
-  strategy: "safe"
-  run_tests: true
-  rollback_on_failure: true
-
-security:
-  check_cves: true
-  check_provenance: true
-  block_vulnerable: true
-```
-
-### Policy File
-
-```yaml
-# configs/policy.yaml
 global:
   block_canary: true
   block_alpha: true
-  max_major_jump: 1
-  provenance_required: true
+  max_major_jump: 0
 
 packages:
+  axios:
+    block_versions: ["1.14.1", "0.30.4"]
+    reason: "Supply chain attack - March 2026"
   react:
     pin_major: 18
     reason: "React 19 migration planned for Q3"
-  
-  axios:
-    block_versions: ["1.14.1"]
-    reason: "Supply chain attack detected"
-
-alerts:
-  compromised_package:
-    channel: "#security-alerts"
-    action: "auto-pin-previous"
 ```
 
-## 🏢 Enterprise Deployment
-
-For internal company use with your own AI models:
+## Docker
 
 ```bash
-# Deploy to Kubernetes
-helm install safeupgrade ./helm/safeupgrade \
-  --set config.aiGatewayURL=https://ai.yourcompany.com \
-  --set config.githubEnterpriseURL=https://github.yourcompany.com
-
-# Or use Docker Compose
-docker-compose -f docker-compose.enterprise.yml up -d
+docker pull pawarpoonam/safeupgrade:latest
 ```
 
-See [Enterprise Deployment Guide](docs/ENTERPRISE_DEPLOYMENT.md) for details.
+Available on [Docker Hub](https://hub.docker.com/r/pawarpoonam/safeupgrade).
 
-## 🔒 Security Features
+## License
 
-### CVE Detection
-Checks OSV.dev database for known vulnerabilities in target versions:
-```
-🚨 BLOCKED axios@1.14.1 — 3 known vulnerabilities
-   • CVE-2024-12345: Code injection vulnerability
-   • CVE-2024-12346: Prototype pollution
-```
-
-### Supply Chain Anomaly Detection
-- Install script detection (common attack vector)
-- Missing provenance attestation
-- Maintainer changes
-- Suspicious version bursts
-- Package age validation
-
-### Provenance Verification
-For npm packages, verifies build provenance using sigstore attestations:
-```
-✅ react@19.0.0 - Provenance verified
-❌ some-package@1.0.0 - No provenance + install scripts = BLOCKED
-```
-
-## 📊 Output Formats
-
-### JSON (default)
-```bash
-safeupgrade scan --output json > report.json
-```
-
-### SARIF (GitHub Security Tab)
-```bash
-safeupgrade scan --output sarif > results.sarif
-# Upload to GitHub Security tab
-```
-
-### Markdown (for PRs)
-```bash
-safeupgrade upgrade --output markdown > report.md
-```
-
-### HTML (visual report)
-```bash
-safeupgrade scan --output html > report.html
-```
-
-## 🔄 CI/CD Integration Examples
-
-<details>
-<summary><b>GitHub Actions</b></summary>
-
-```yaml
-- uses: docker://aivar/safeupgrade:latest
-  with:
-    args: upgrade --auto-pr
-  env:
-    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-</details>
-
-<details>
-<summary><b>GitLab CI</b></summary>
-
-```yaml
-safeupgrade:
-  image: aivar/safeupgrade:latest
-  script:
-    - safeupgrade upgrade --auto-pr
-  variables:
-    OPENAI_API_KEY: $OPENAI_API_KEY
-    GITHUB_TOKEN: $CI_JOB_TOKEN
-  only:
-    - schedules
-```
-</details>
-
-<details>
-<summary><b>Jenkins</b></summary>
-
-```groovy
-pipeline {
-  agent any
-  stages {
-    stage('SafeUpgrade') {
-      steps {
-        sh '''
-          docker run -v $WORKSPACE:/repo \
-            -e OPENAI_API_KEY=$OPENAI_API_KEY \
-            aivar/safeupgrade:latest \
-            upgrade --repo /repo
-        '''
-      }
-    }
-  }
-}
-```
-</details>
-
-## 🤝 Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Development Setup
-
-```bash
-# Clone repo
-git clone https://github.com/aivar-tech/safeupgrade-agent
-cd safeupgrade-agent
-
-# Install dependencies
-go mod download
-
-# Run tests
-go test ./...
-
-# Build
-go build -o safeupgrade .
-
-# Test on sample project
-./safeupgrade scan --repo testdata/sample-project
-```
-
-## 📝 License
-
-MIT License - see [LICENSE](LICENSE)
-
-## 🙋 Support
-
-- 📚 [Documentation](https://docs.safeupgrade.io)
-- 💬 [GitHub Discussions](https://github.com/aivar-tech/safeupgrade-agent/discussions)
-- 🐛 [Issue Tracker](https://github.com/aivar-tech/safeupgrade-agent/issues)
-- 🔒 [Security Policy](SECURITY.md)
-
-## 🌟 Star History
-
-If SafeUpgrade helps you, give it a ⭐️ on GitHub!
-
-## 🗺️ Roadmap
-
-See [ROADMAP.md](ROADMAP.md) for planned features.
-
----
-
-**Made with ❤️ by [Aivar](https://aivar.app)** • [Website](https://safeupgrade.io) • [Blog](https://blog.aivar.app)
+MIT

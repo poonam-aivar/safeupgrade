@@ -138,7 +138,7 @@ Respond ONLY with a JSON array. No markdown, no explanation outside the JSON.`
 // callGateway calls the AI Gateway (OpenAI-compatible API)
 func (a *Analyzer) callGateway(system, prompt string) (string, error) {
 	body, _ := json.Marshal(map[string]any{
-		"model": "claude-sonnet-4.5",
+		"model": "claude-haiku-4.5",
 		"messages": []map[string]string{
 			{"role": "system", "content": system},
 			{"role": "user", "content": prompt},
