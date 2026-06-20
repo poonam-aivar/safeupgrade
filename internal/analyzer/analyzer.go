@@ -55,7 +55,10 @@ func NewWithConfig(ecosystem, awsProfile, awsRegion, gatewayURL, gatewayKey stri
 		gatewayURL = os.Getenv("AI_GATEWAY_URL")
 	}
 	if gatewayKey == "" {
-		gatewayKey = os.Getenv("AI_GATEWAY_KEY")
+		gatewayKey = os.Getenv("SAFEUPGRADE_AI_KEY")
+	}
+	if gatewayKey == "" {
+		gatewayKey = os.Getenv("AI_GATEWAY_KEY") // backwards compatible
 	}
 	if gatewayURL != "" && gatewayKey != "" {
 		a.gatewayURL = gatewayURL

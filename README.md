@@ -7,6 +7,9 @@ SafeUpgrade scans your project's dependencies, checks for vulnerabilities and su
 ## Quick Start
 
 ```bash
+docker pull pawarpoonam/safeupgrade:latest
+
+# Scan a project
 docker run --rm -v $(pwd):/workspace \
   pawarpoonam/safeupgrade:latest scan --repo /workspace --lang pip
 ```
@@ -29,15 +32,24 @@ docker run --rm -v $(pwd):/workspace \
   pawarpoonam/safeupgrade:latest scan --repo /workspace --lang go
 ```
 
+No installation needed — it parses `package.json`, `pyproject.toml`, and `requirements.txt` directly.
+
 ### Full Upgrade (AI analysis + file changes)
 
 ```bash
 docker run --rm --user root -v $(pwd):/workspace \
-  -e AI_GATEWAY_KEY=your-key \
+  -e SAFEUPGRADE_AI_KEY=your-llm-api-key \
   pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
 ```
 
-### Policy Check (validate against org rules)
+This will:
+1. Scan all dependency files in your project
+2. Check each target version for known CVEs (via OSV.dev)
+3. Send real changelog + provenance data to an LLM (Claude) for risk analysis
+4. Update version pins in your source files for packages deemed SAFE
+5. Generate `upgrade_report.json` with a full risk report
+
+### Policy Check
 
 ```bash
 docker run --rm -v $(pwd):/workspace \
@@ -46,7 +58,7 @@ docker run --rm -v $(pwd):/workspace \
 
 ## GitHub Actions
 
-Add this to any repo's workflow:
+Add this workflow to any repo you want SafeUpgrade to protect:
 
 ```yaml
 name: SafeUpgrade
@@ -54,21 +66,24 @@ name: SafeUpgrade
 on:
   schedule:
     - cron: '0 6 * * 1'  # Every Monday 6 AM UTC
-  workflow_dispatch:
+  workflow_dispatch:       # Or trigger manually
 
 jobs:
   safeupgrade:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: SafeUpgrade Full Analysis
+      - name: Run SafeUpgrade
         run: |
           docker run --rm --user root -v $(pwd):/workspace \
-            -e AI_GATEWAY_KEY=${{ secrets.AI_GATEWAY_KEY }} \
+            -e SAFEUPGRADE_AI_KEY=${{ secrets.SAFEUPGRADE_AI_KEY }} \
             pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
 
-      - name: Create PR if upgrades were made
+      - name: Create PR
         run: |
           if [ -n "$(git diff --name-only)" ]; then
             BRANCH="safeupgrade/$(date +%Y%m%d)"
@@ -84,23 +99,34 @@ jobs:
               --body "$PR_BODY" \
               --base main
           else
-            echo "No upgrades applied — all deps either up-to-date or blocked by policy/AI"
+            echo "✅ No upgrades needed"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-**Required secret:** `AI_GATEWAY_KEY` — your AI gateway API key for Claude analysis.
+> **Why is PR creation a separate step?**
+> SafeUpgrade runs inside Docker — it analyzes deps and updates version pins in your files. But creating a PR requires git push + GitHub API access, which is handled by the runner (not the container). This is the same pattern used by tools like Renovate and Terraform.
 
-Change `--lang pip` to `npm` or `go` depending on your project.
+### Setup
+
+Add one secret to your repo (Settings → Secrets → Actions):
+
+| Secret | What it is |
+|--------|-----------|
+| `SAFEUPGRADE_AI_KEY` | API key for the LLM service that powers the AI analysis (e.g., your org's AI gateway, or an Anthropic/OpenAI key). This is **not** an AWS API Gateway key — it's the authentication token for the AI model endpoint that SafeUpgrade calls to analyze changelogs and assess risk. |
+
+`GITHUB_TOKEN` is provided automatically — no setup needed.
+
+Change `--lang pip` to `npm` or `go` depending on your project. For monorepos, point `--repo` at the root — it recursively finds all dependency files.
 
 ## What It Does
 
 ```
-[1/5] Scan         → Finds outdated deps (parses package.json / pyproject.toml / requirements.txt directly — no install needed)
+[1/5] Scan         → Finds outdated deps (parses manifests directly — no install needed)
 [2/5] Policy       → Blocks known-compromised versions + major jumps
-      Live CVE     → Queries OSV.dev for each target version
-[3/5] AI Analysis  → Claude reads changelogs, checks provenance, scores risk → SAFE / RISKY / BLOCK
+      Live CVE     → Queries OSV.dev for vulnerabilities in each target version
+[3/5] AI Analysis  → LLM reads changelogs, checks provenance, scores risk → SAFE / RISKY / BLOCK
 [4/5] Execute      → Updates version pins in source files (only SAFE packages)
 [5/5] Report       → Generates upgrade_report.json with PR-ready markdown
 ```
@@ -115,13 +141,10 @@ Change `--lang pip` to `npm` or `go` depending on your project.
         27 candidates after policy filter
         27 candidates after live CVE check
   [3/5] AI analyzing changelogs and risk...
-        Fetching changelogs...
-        Checking CVEs...
-        Verifying provenance...
         26 upgrades deemed safe
-        ✅ axios: SAFE (confidence: 95%) — Minor version with security hardening, verified provenance, no CVEs
-        ✅ react-dom: SAFE (confidence: 95%) — Patch fix, verified provenance, React core team
-        ⚠️  react-hook-form: RISKY (confidence: 60%) — Published <24 hours ago without provenance attestation
+        ✅ axios: SAFE (95%) — Minor version with security hardening, verified provenance, no CVEs
+        ✅ react-dom: SAFE (95%) — Patch fix, verified provenance, React core team
+        ⚠️  react-hook-form: RISKY (60%) — Published <24hrs ago without provenance attestation
   [4/5] Executing upgrades...
   [5/5] Generating report...
 
@@ -133,13 +156,12 @@ Change `--lang pip` to `npm` or `go` depending on your project.
 | | Dependabot | SafeUpgrade |
 |---|---|---|
 | Detection | ✅ | ✅ |
-| AI changelog analysis | ❌ | ✅ Claude reads release notes |
+| AI changelog analysis | ❌ | ✅ LLM reads actual release notes |
 | Supply chain detection | ❌ | ✅ Provenance, install scripts, publish anomalies |
-| Risk scoring | ❌ | ✅ Confidence-based decisions |
+| Risk scoring | ❌ | ✅ Confidence-based decisions with reasoning |
 | Org-wide policy | ❌ | ✅ Central YAML (block versions, pin majors) |
 | Batched PRs | ❌ (1 per dep) | ✅ One PR with all safe upgrades |
-| Live CVE blocking | ❌ | ✅ OSV.dev query before upgrade |
-| No install needed | ✅ | ✅ Parses manifest files directly |
+| Live CVE blocking | ❌ | ✅ Blocks upgrade if target version has CVEs |
 
 ## Supported Ecosystems
 
@@ -147,13 +169,13 @@ Change `--lang pip` to `npm` or `go` depending on your project.
 |-----------|---------------|----------|
 | Python | `pyproject.toml`, `requirements.txt` | PyPI |
 | Node.js | `package.json` | npm |
-| Go | `go.mod` | Go modules |
+| Go | `go.mod` | Go proxy |
 
-Monorepos are supported — the scanner recursively finds all dependency files.
+Monorepos supported — recursively scans all subdirectories.
 
 ## Policy File
 
-Create a `policy.yaml` to enforce org-wide rules:
+Enforce org-wide rules:
 
 ```yaml
 global:
@@ -176,7 +198,7 @@ packages:
 docker pull pawarpoonam/safeupgrade:latest
 ```
 
-Available on [Docker Hub](https://hub.docker.com/r/pawarpoonam/safeupgrade).
+[Docker Hub →](https://hub.docker.com/r/pawarpoonam/safeupgrade)
 
 ## License
 
