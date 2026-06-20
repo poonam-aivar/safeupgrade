@@ -2,9 +2,9 @@
 
 AI-powered dependency upgrade agent with supply chain security built-in.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://golang.org)
-[![Docker Pulls](https://img.shields.io/docker/pulls/pawarpoonam/safeupgrade)](https://hub.docker.com/r/pawarpoonam/safeupgrade)
+[![Docker](https://img.shields.io/badge/Docker-pawarpoonam%2Fsafeupgrade-2496ED?logo=docker)](https://hub.docker.com/r/pawarpoonam/safeupgrade)
 
 ## 🎯 What is SafeUpgrade?
 
@@ -221,7 +221,23 @@ pipeline {
 
 ### CVE Detection
 
-Queries OSV.dev for known vulnerabilities in target versions:
+Queries [OSV.dev](https://osv.dev) in real-time for every target version before upgrading.
+
+**Where does vulnerability data come from?**
+
+```
+Security researcher discovers vulnerability
+        ↓
+Reports to GitHub Advisory Database / NVD / package registry
+        ↓
+OSV.dev aggregates from all sources (GitHub, NVD, PyPI, npm, Go)
+        ↓
+SafeUpgrade queries OSV.dev API at scan time
+        ↓
+Blocks upgrade if target version is affected
+```
+
+This means SafeUpgrade catches vulnerabilities within hours of public disclosure — no manual updates needed.
 
 ```
 🚨 BLOCKED axios@1.14.1 — 16 known vulnerabilities
@@ -247,7 +263,16 @@ Queries OSV.dev for known vulnerabilities in target versions:
 
 ## 🎨 Policy File
 
-Create a `policy.yaml` to enforce org-wide rules:
+A policy file lets you define **org-wide rules** for dependency upgrades. It's optional — without it, SafeUpgrade uses sensible defaults (block canary/alpha, block major jumps).
+
+A default policy is included in the Docker image at `/etc/safeupgrade/policy.yaml`. You can mount your own:
+
+```bash
+docker run --rm -v $(pwd):/workspace -v ./my-policy.yaml:/etc/safeupgrade/policy.yaml \
+  pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
+```
+
+Example `policy.yaml`:
 
 ```yaml
 global:
