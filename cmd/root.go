@@ -33,8 +33,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&githubToken, "github-token", "", "GitHub token for PR creation (or GITHUB_TOKEN env)")
 	rootCmd.PersistentFlags().StringVar(&slackWebhook, "slack-webhook", "", "Slack webhook URL for alerts (or SLACK_WEBHOOK env)")
 	rootCmd.PersistentFlags().StringVar(&githubOrg, "org", "", "GitHub org for multi-repo scanning")
-	rootCmd.PersistentFlags().StringVar(&gatewayURL, "gateway-url", "https://aigateway.aivar.app", "AI Gateway URL")
-	rootCmd.PersistentFlags().StringVar(&gatewayKey, "gateway-key", "", "AI Gateway API key (or AI_GATEWAY_KEY env)")
+	rootCmd.PersistentFlags().StringVar(&gatewayURL, "ai-url", "", "AI endpoint URL (or SAFEUPGRADE_AI_URL env)")
+	rootCmd.PersistentFlags().StringVar(&gatewayKey, "ai-key", "", "AI API key (or SAFEUPGRADE_AI_KEY env)")
 
 	rootCmd.AddCommand(scanCmd)
 	rootCmd.AddCommand(upgradeCmd)

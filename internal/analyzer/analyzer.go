@@ -50,15 +50,12 @@ func NewWithEcosystem(ecosystem string) *Analyzer {
 func NewWithConfig(ecosystem, awsProfile, awsRegion, gatewayURL, gatewayKey string) *Analyzer {
 	a := &Analyzer{ecosystem: ecosystem}
 
-	// Priority 1: AI Gateway
+	// AI backend: user provides endpoint URL + key (any OpenAI-compatible API)
 	if gatewayURL == "" {
-		gatewayURL = os.Getenv("AI_GATEWAY_URL")
+		gatewayURL = os.Getenv("SAFEUPGRADE_AI_URL")
 	}
 	if gatewayKey == "" {
 		gatewayKey = os.Getenv("SAFEUPGRADE_AI_KEY")
-	}
-	if gatewayKey == "" {
-		gatewayKey = os.Getenv("AI_GATEWAY_KEY") // backwards compatible
 	}
 	if gatewayURL != "" && gatewayKey != "" {
 		a.gatewayURL = gatewayURL

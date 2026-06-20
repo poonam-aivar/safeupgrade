@@ -38,7 +38,8 @@ No installation needed — it parses `package.json`, `pyproject.toml`, and `requ
 
 ```bash
 docker run --rm --user root -v $(pwd):/workspace \
-  -e SAFEUPGRADE_AI_KEY=your-llm-api-key \
+  -e SAFEUPGRADE_AI_KEY=your-api-key \
+  -e SAFEUPGRADE_AI_URL=https://api.anthropic.com \
   pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
 ```
 
@@ -81,6 +82,7 @@ jobs:
         run: |
           docker run --rm --user root -v $(pwd):/workspace \
             -e SAFEUPGRADE_AI_KEY=${{ secrets.SAFEUPGRADE_AI_KEY }} \
+            -e SAFEUPGRADE_AI_URL=${{ secrets.SAFEUPGRADE_AI_URL }} \
             pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
 
       - name: Create PR
@@ -110,11 +112,21 @@ jobs:
 
 ### Setup
 
-Add one secret to your repo (Settings → Secrets → Actions):
+Add these secrets to your repo (Settings → Secrets → Actions):
 
 | Secret | What it is |
 |--------|-----------|
-| `SAFEUPGRADE_AI_KEY` | API key for the LLM service that powers the AI analysis (e.g., your org's AI gateway, or an Anthropic/OpenAI key). This is **not** an AWS API Gateway key — it's the authentication token for the AI model endpoint that SafeUpgrade calls to analyze changelogs and assess risk. |
+| `SAFEUPGRADE_AI_KEY` | API key for your LLM provider |
+| `SAFEUPGRADE_AI_URL` | Your LLM endpoint URL |
+
+Works with any OpenAI-compatible API:
+
+| Provider | URL | How to get a key |
+|----------|-----|-----------------|
+| Anthropic | `https://api.anthropic.com` | [console.anthropic.com](https://console.anthropic.com) |
+| OpenAI | `https://api.openai.com` | [platform.openai.com](https://platform.openai.com) |
+| AWS Bedrock (via gateway) | Your org's gateway URL | Ask your platform team |
+| Any OpenAI-compatible proxy | Your proxy URL | Depends on setup |
 
 `GITHUB_TOKEN` is provided automatically — no setup needed.
 
