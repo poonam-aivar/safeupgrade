@@ -2,7 +2,7 @@ name: SafeUpgrade
 
 on:
   schedule:
-    - cron: '0 6 * * 1' # Every Monday at 6 AM UTC
+    - cron: '0 6 * * 1'  # Every Monday 6 AM UTC
   workflow_dispatch:
 
 permissions:
@@ -15,37 +15,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-
-      - name: Build SafeUpgrade
-        run: go build -o safeupgrade .
-        working-directory: .
-
-      - name: Run SafeUpgrade scan
-        run: ./safeupgrade scan --policy configs/policy.yaml
-        env:
-          AWS_REGION: us-east-1
-
-      - name: Run SafeUpgrade upgrade
-        run: ./safeupgrade upgrade --policy configs/policy.yaml
-        env:
-          AWS_REGION: us-east-1
-
-      - name: Create PR if changes exist
+      - name: Run SafeUpgrade
         run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            BRANCH="safeupgrade/$(date +%Y%m%d)"
+          docker run --rm --user root -v $(pwd):/workspace \
+            -e SAFEUPGRADE_AI_KEY=${{ secrets.SAFEUPGRADE_AI_KEY }} \
+            -e SAFEUPGRADE_AI_URL=${{ secrets.SAFEUPGRADE_AI_URL }} \
+            pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
+          sudo chown -R $(id -u):$(id -g) upgrade_report.json 2>/dev/null || true
+
+      - name: Create PR if upgrades were made
+        run: |
+          if [ -n "$(git diff --name-only)" ]; then
+            BRANCH="safeupgrade/$(date +%Y%m%d)-${{ github.run_id }}"
+            git config user.name "SafeUpgrade Bot"
+            git config user.email "safeupgrade@users.noreply.github.com"
             git checkout -b "$BRANCH"
-            git add .
+            git add -u
             git commit -m "chore(deps): safe dependency upgrades by SafeUpgrade Agent"
             git push -u origin "$BRANCH"
+            PR_BODY=$(jq -r '.pr_body // empty' upgrade_report.json 2>/dev/null || echo 'SafeUpgrade automated upgrade')
             gh pr create \
               --title "chore(deps): SafeUpgrade automated dependency update" \
-              --body-file upgrade_report.json \
+              --body "$PR_BODY" \
               --base main
+          else
+            echo "✅ No upgrades needed"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
