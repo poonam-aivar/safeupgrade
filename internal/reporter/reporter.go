@@ -32,6 +32,7 @@ type UpgradeDetail struct {
 	From             string  `json:"from"`
 	To               string  `json:"to"`
 	RiskScore        float64 `json:"risk_score"`
+	Confidence       float64 `json:"confidence"`
 	ChangelogSummary string  `json:"changelog_summary"`
 }
 
@@ -70,6 +71,7 @@ func Generate(scan *scanner.Report, analyses []analyzer.Result, result *executor
 				From:             pkg.From,
 				To:               pkg.To,
 				RiskScore:        a.AnomalyScore,
+				Confidence:       a.Confidence,
 				ChangelogSummary: a.ChangelogSummary,
 			})
 		} else {
@@ -93,8 +95,8 @@ func generatePRBody(report *UpgradeReport) string {
 		boolToEmoji(report.Summary.TestsPassed)))
 
 	sb.WriteString("### 📦 Upgrades\n\n")
-	sb.WriteString("| Package | From | To | Risk |\n")
-	sb.WriteString("|---------|------|----|------|\n")
+	sb.WriteString("| Package | From | To | Confidence | Risk |\n")
+	sb.WriteString("|---------|------|----|-----------|------|\n")
 	for _, u := range report.Upgrades {
 		risk := "🟢 Low"
 		if u.RiskScore > 0.5 {
@@ -103,7 +105,7 @@ func generatePRBody(report *UpgradeReport) string {
 		if u.RiskScore > 0.8 {
 			risk = "🔴 High"
 		}
-		sb.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", u.Name, u.From, u.To, risk))
+		sb.WriteString(fmt.Sprintf("| %s | %s | %s | %.0f%% | %s |\n", u.Name, u.From, u.To, u.Confidence*100, risk))
 	}
 
 	if len(report.Skipped) > 0 {
