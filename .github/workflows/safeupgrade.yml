@@ -2,7 +2,7 @@ name: SafeUpgrade
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # Every Monday 6 AM UTC
+    - cron: '0 6 * * 1'  # Every Monday at 06:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -17,11 +17,10 @@ jobs:
 
       - name: Run SafeUpgrade
         run: |
-          docker run --rm --user root -v $(pwd):/workspace \
+          docker run --rm --user "$(id -u):$(id -g)" -v $(pwd):/workspace \
             -e SAFEUPGRADE_AI_KEY=${{ secrets.SAFEUPGRADE_AI_KEY }} \
             -e SAFEUPGRADE_AI_URL=${{ secrets.SAFEUPGRADE_AI_URL }} \
             pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
-          sudo chown -R $(id -u):$(id -g) upgrade_report.json 2>/dev/null || true
 
       - name: Create PR if upgrades were made
         run: |
@@ -33,7 +32,15 @@ jobs:
             git add -u
             git commit -m "chore(deps): safe dependency upgrades by SafeUpgrade Agent"
             git push -u origin "$BRANCH"
-            PR_BODY=$(jq -r '.pr_body // empty' upgrade_report.json 2>/dev/null || echo 'SafeUpgrade automated upgrade')
+
+            PR_BODY=""
+            if [ -f upgrade_report.json ]; then
+              PR_BODY=$(jq -r '.pr_body // empty' upgrade_report.json)
+            fi
+            if [ -z "$PR_BODY" ]; then
+              PR_BODY="SafeUpgrade automated dependency upgrade"
+            fi
+
             gh pr create \
               --title "chore(deps): SafeUpgrade automated dependency update" \
               --body "$PR_BODY" \
