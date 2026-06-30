@@ -4,7 +4,7 @@ AI-powered dependency upgrade agent with supply chain security built-in.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://golang.org)
-[![Docker](https://img.shields.io/badge/ECR_Public-safeupgrade-FF9900?logo=amazonaws)](https://gallery.ecr.aws/i3s3o0q6/safeupgrade)
+[![Docker](https://img.shields.io/badge/Docker-pawarpoonam%2Fsafeupgrade-2496ED?logo=docker)](https://hub.docker.com/r/pawarpoonam/safeupgrade)
 
 ## 🎯 What is SafeUpgrade?
 
@@ -24,23 +24,23 @@ SafeUpgrade analyzes dependency upgrades using AI and real security data to auto
 ```bash
 # Scan for outdated dependencies (no AI key needed)
 docker run --rm -v $(pwd):/workspace \
-  public.ecr.aws/i3s3o0q6/safeupgrade:latest scan --repo /workspace --lang pip
+  pawarpoonam/safeupgrade:latest scan --repo /workspace --lang pip
 
 # Full AI-powered upgrade analysis
 docker run --rm --user "$(id -u):$(id -g)" -v $(pwd):/workspace \
   -e SAFEUPGRADE_AI_KEY=your-api-key \
   -e SAFEUPGRADE_AI_URL=https://api.anthropic.com \
-  public.ecr.aws/i3s3o0q6/safeupgrade:latest upgrade --repo /workspace --lang npm --policy /etc/safeupgrade/policy.yaml
+  pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang npm --policy /etc/safeupgrade/policy.yaml
 ```
 
 ### Install CLI
 
 ```bash
 # Using Go
-go install github.com/poonam-aivar/safeupgrade@latest
+go install github.com/Poonam1607/safeupgrade@latest
 
 # Or build from source
-git clone https://github.com/poonam-aivar/safeupgrade.git
+git clone https://github.com/Poonam1607/safeupgrade.git
 cd safeupgrade && go build -o safeupgrade .
 ```
 
@@ -158,7 +158,7 @@ jobs:
           docker run --rm --user "$(id -u):$(id -g)" -v $(pwd):/workspace \
             -e SAFEUPGRADE_AI_KEY=${{ secrets.SAFEUPGRADE_AI_KEY }} \
             -e SAFEUPGRADE_AI_URL=${{ secrets.SAFEUPGRADE_AI_URL }} \
-            public.ecr.aws/i3s3o0q6/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
+            pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
 
       - name: Create PR
         run: |
@@ -186,7 +186,7 @@ jobs:
 
 ```yaml
 safeupgrade:
-  image: public.ecr.aws/i3s3o0q6/safeupgrade:latest
+  image: pawarpoonam/safeupgrade:latest
   script:
     - safeupgrade upgrade --repo . --lang pip --policy /etc/safeupgrade/policy.yaml
   variables:
@@ -208,7 +208,7 @@ pipeline {
           docker run --rm --user "$(id -u):$(id -g)" -v $WORKSPACE:/workspace \
             -e SAFEUPGRADE_AI_KEY=$SAFEUPGRADE_AI_KEY \
             -e SAFEUPGRADE_AI_URL=$SAFEUPGRADE_AI_URL \
-            public.ecr.aws/i3s3o0q6/safeupgrade:latest \
+            pawarpoonam/safeupgrade:latest \
             upgrade --repo /workspace --lang pip
         '''
       }
@@ -269,7 +269,7 @@ A default policy is included in the Docker image at `/etc/safeupgrade/policy.yam
 
 ```bash
 docker run --rm -v $(pwd):/workspace -v ./my-policy.yaml:/etc/safeupgrade/policy.yaml \
-  public.ecr.aws/i3s3o0q6/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
+  pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
 ```
 
 Example `policy.yaml`:
@@ -323,7 +323,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ### Development Setup
 
 ```bash
-git clone https://github.com/poonam-aivar/safeupgrade.git
+git clone https://github.com/Poonam1607/safeupgrade.git
 cd safeupgrade
 go mod download
 go test ./...
@@ -339,9 +339,9 @@ MIT License
 
 ## 🙋 Support
 
-- 🐛 [Issue Tracker](https://github.com/poonam-aivar/safeupgrade/issues)
-- 💬 [Discussions](https://github.com/poonam-aivar/safeupgrade/discussions)
+- 🐛 [Issue Tracker](https://github.com/Poonam1607/safeupgrade/issues)
+- 💬 [Discussions](https://github.com/Poonam1607/safeupgrade/discussions)
 
 ---
 
-**Made with ❤️** • [ECR Public](https://gallery.ecr.aws/i3s3o0q6/safeupgrade)
+**Made with ❤️** • [Docker Hub](https://hub.docker.com/r/pawarpoonam/safeupgrade)

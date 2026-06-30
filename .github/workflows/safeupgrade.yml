@@ -20,7 +20,7 @@ jobs:
           docker run --rm --user "$(id -u):$(id -g)" -v $(pwd):/workspace \
             -e SAFEUPGRADE_AI_KEY=${{ secrets.SAFEUPGRADE_AI_KEY }} \
             -e SAFEUPGRADE_AI_URL=${{ secrets.SAFEUPGRADE_AI_URL }} \
-            public.ecr.aws/i3s3o0q6/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
+            pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
 
       - name: Create PR if upgrades were made
         run: |
