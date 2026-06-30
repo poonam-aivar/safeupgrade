@@ -27,7 +27,7 @@ docker run --rm -v $(pwd):/workspace \
   pawarpoonam/safeupgrade:latest scan --repo /workspace --lang pip
 
 # Full AI-powered upgrade analysis
-docker run --rm --user root -v $(pwd):/workspace \
+docker run --rm --user "$(id -u):$(id -g)" -v $(pwd):/workspace \
   -e SAFEUPGRADE_AI_KEY=your-api-key \
   -e SAFEUPGRADE_AI_URL=https://api.anthropic.com \
   pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang npm --policy /etc/safeupgrade/policy.yaml
@@ -155,7 +155,7 @@ jobs:
 
       - name: Run SafeUpgrade
         run: |
-          docker run --rm --user root -v $(pwd):/workspace \
+          docker run --rm --user "$(id -u):$(id -g)" -v $(pwd):/workspace \
             -e SAFEUPGRADE_AI_KEY=${{ secrets.SAFEUPGRADE_AI_KEY }} \
             -e SAFEUPGRADE_AI_URL=${{ secrets.SAFEUPGRADE_AI_URL }} \
             pawarpoonam/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
@@ -205,7 +205,7 @@ pipeline {
     stage('SafeUpgrade') {
       steps {
         sh '''
-          docker run --rm --user root -v $WORKSPACE:/workspace \
+          docker run --rm --user "$(id -u):$(id -g)" -v $WORKSPACE:/workspace \
             -e SAFEUPGRADE_AI_KEY=$SAFEUPGRADE_AI_KEY \
             -e SAFEUPGRADE_AI_URL=$SAFEUPGRADE_AI_URL \
             pawarpoonam/safeupgrade:latest \
