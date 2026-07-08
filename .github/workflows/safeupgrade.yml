@@ -2,18 +2,21 @@ name: SafeUpgrade
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # Every Monday at 06:00 UTC
+    - cron: '30 0 * * 5'  # Every Friday at 00:30 UTC (06:00 IST)
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   safeupgrade:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: convogent-v2-dev
 
       - name: Run SafeUpgrade
         run: |
@@ -23,6 +26,7 @@ jobs:
             public.ecr.aws/i3s3o0q6/safeupgrade:latest upgrade --repo /workspace --lang pip --policy /etc/safeupgrade/policy.yaml
 
       - name: Create PR if upgrades were made
+        id: pr
         run: |
           if [ -n "$(git diff --name-only)" ]; then
             BRANCH="safeupgrade/$(date +%Y%m%d)-${{ github.run_id }}"
@@ -41,12 +45,48 @@ jobs:
               PR_BODY="SafeUpgrade automated dependency upgrade"
             fi
 
-            gh pr create \
+            PR_URL=$(gh pr create \
               --title "chore(deps): SafeUpgrade automated dependency update" \
               --body "$PR_BODY" \
-              --base main
+              --base convogent-v2-dev)
+
+            echo "pr_created=true" >> $GITHUB_OUTPUT
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
           else
             echo "✅ No upgrades needed"
+            echo "pr_created=false" >> $GITHUB_OUTPUT
+            echo "pr_url=" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::283744739430:role/Githubactions
+          aws-region: us-east-1
+
+      - name: Push status to Secogent dashboard
+        env:
+          PROJECT_NAME: your-project-name
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          PR_URL="${{ steps.pr.outputs.pr_url }}"
+          PR_CREATED="${{ steps.pr.outputs.pr_created }}"
+
+          if [ -f upgrade_report.json ]; then
+            UPGRADES=$(jq -c '[.upgrades[]? | {package: .name, from: .from, to: .to, status: "open"}]' upgrade_report.json 2>/dev/null || echo "[]")
+          else
+            UPGRADES="[]"
+          fi
+          COUNT=$(echo "$UPGRADES" | jq 'length')
+
+          cat > safeupgrade.json << EOF
+          {"last_run":"${TIMESTAMP}","pr_created":${PR_CREATED},"pr_url":"${PR_URL}","pending_upgrades":${COUNT},"upgrades":${UPGRADES}}
+          EOF
+
+          python3 -c "import json; d=json.load(open('safeupgrade.json')); json.dump(d, open('safeupgrade.json','w'), indent=2)"
+
+          aws s3 cp safeupgrade.json \
+            "s3://secogent-dashboard-aivar/data/${PROJECT_NAME}/safeupgrade.json" \
+            --content-type "application/json" --region us-east-1
